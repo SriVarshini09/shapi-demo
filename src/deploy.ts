@@ -19,7 +19,7 @@ export async function triggerDeploy(req: DeployRequest, token: string): Promise<
     },
     body: JSON.stringify({ ref: req.ref }),
   });
-  if (![200, 204].includes(res.status)) {
+  if (res.status !== 204) {
     throw new Error(`deploy dispatch failed with ${res.status}`);
   }
 }
