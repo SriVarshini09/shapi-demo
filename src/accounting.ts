@@ -4,7 +4,7 @@ const QBO = "https://quickbooks.api.intuit.com";
 
 export async function openInvoices(realmId: string, accessToken: string) {
   const query = encodeURIComponent("select * from Invoice where Balance > '0'");
-  const res = await fetch(`${QBO}/v3/company/${realmId}/query?query=${query}&minorversion=65`, {
+  const res = await fetch(`${QBO}/v3/company/${realmId}/query?query=${query}&minorversion=75`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
   });
   const body = await res.json();
