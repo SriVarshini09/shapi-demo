@@ -34,6 +34,8 @@ jobs:
       - name: Check out the pull request's head commit
         id: pr
         run: |
+          # This workflow's script, set aside first: an older PR's head commit does not have it.
+          cp .github/shapi/predicates.mjs "$RUNNER_TEMP/predicates.mjs"
           gh pr view "$PR" --json number,url,headRefOid,headRefName,files > "$RUNNER_TEMP/pr.json"
           git checkout -q "$(jq -r .headRefOid "$RUNNER_TEMP/pr.json")"
           # The subjects: the files the PR changed that exist at its head.
@@ -51,7 +53,7 @@ jobs:
         continue-on-error: true
         run: npx vitest run --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
       - name: Write the predicates
-        run: node .github/shapi/predicates.mjs "$RUNNER_TEMP"
+        run: node "$RUNNER_TEMP/predicates.mjs" "$RUNNER_TEMP"
         env:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       - uses: actions/attest@v4
