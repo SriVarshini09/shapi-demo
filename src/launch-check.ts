@@ -3,7 +3,7 @@
 const QBO = "https://quickbooks.api.intuit.com";
 
 export async function companyName(realmId: string, accessToken: string) {
-  const res = await fetch(`${QBO}/v3/company/${realmId}/companyinfo/${realmId}?minorversion=65`, {
+  const res = await fetch(`${QBO}/v3/company/${realmId}/companyinfo/${realmId}?minorversion=75`, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
   });
   const body = await res.json();
