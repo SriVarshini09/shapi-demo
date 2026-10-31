@@ -1,0 +1,66 @@
+name: SHAPI attestations
+
+# Every SHAPI fix PR gets two signed attestations over the files it changes (SHAPI execution plan S-04):
+# - https://in-toto.io/attestation/test-result/v0.1: the repository's tests on the PR's head commit, by name;
+# - https://shapi.dev/attestation/api-fix/v0.1: which advisory the PR fixes, the files it changed, and its contract tests.
+# Verify one with: gh attestation verify <changed file> --repo <owner>/<repo> --predicate-type <type>
+# Run it by hand with a PR number to attest a SHAPI PR opened before this workflow existed.
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Number of the SHAPI pull request to attest
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  id-token: write
+  attestations: write
+
+jobs:
+  attest:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.head_ref, 'shapi/')
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.number || inputs.pr }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check out the pull request's head commit
+        id: pr
+        run: |
+          gh pr view "$PR" --json number,url,headRefOid,headRefName,files > "$RUNNER_TEMP/pr.json"
+          git checkout -q "$(jq -r .headRefOid "$RUNNER_TEMP/pr.json")"
+          # The subjects: the files the PR changed that exist at its head.
+          jq -r '.files[].path' "$RUNNER_TEMP/pr.json" | while read -r f; do [ -f "$f" ] && echo "$f"; done > "$RUNNER_TEMP/subjects.txt"
+          {
+            echo "subjects<<EOF"
+            cat "$RUNNER_TEMP/subjects.txt"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - name: Run the tests
+        continue-on-error: true
+        run: npx vitest run --reporter=json --outputFile="$RUNNER_TEMP/vitest.json"
+      - name: Write the predicates
+        run: node .github/shapi/predicates.mjs "$RUNNER_TEMP"
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      - uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.pr.outputs.subjects }}
+          predicate-type: https://in-toto.io/attestation/test-result/v0.1
+          predicate-path: ${{ runner.temp }}/test-result.json
+      - uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.pr.outputs.subjects }}
+          predicate-type: https://shapi.dev/attestation/api-fix/v0.1
+          predicate-path: ${{ runner.temp }}/api-fix.json
