@@ -7,3 +7,14 @@ export async function createCustomer(email: string): Promise<string> {
   if (customer.tax_exempt === "exempt") console.log("tax exempt customer", customer.id);
   return customer.id;
 }
+
+export async function startCheckout(priceId: string, returnUrl: string): Promise<string | null> {
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    ui_mode: "embedded",
+    line_items: [{ price: priceId, quantity: 1 }],
+    return_url: returnUrl,
+  });
+  if (session.ui_mode === "embedded") return session.client_secret;
+  return session.url;
+}
